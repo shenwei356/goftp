@@ -11,23 +11,9 @@ import (
 	"strings"
 )
 
-type EntryType int
-
-const (
-	EntryTypeFile EntryType = iota
-	EntryTypeFolder
-	EntryTypeLink
-)
-
 type ServerConn struct {
 	conn *textproto.Conn
 	host string
-}
-
-type Entry struct {
-	Name string
-	Type EntryType
-	Size uint64
 }
 
 type response struct {
@@ -136,37 +122,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	return conn, nil
 }
 
-func parseListLine(line string) (*Entry, error) {
-	fields := strings.Fields(line)
-	if len(fields) < 9 {
-		return nil, errors.New("Unsupported LIST line")
-	}
-
-	e := &Entry{}
-	switch fields[0][0] {
-	case '-':
-		e.Type = EntryTypeFile
-	case 'd':
-		e.Type = EntryTypeFolder
-	case 'l':
-		e.Type = EntryTypeLink
-	default:
-		return nil, errors.New("Unknown entry type")
-	}
-
-	if e.Type == EntryTypeFile {
-		size, err := strconv.ParseUint(fields[4], 10, 0)
-		if err != nil {
-			return nil, err
-		}
-		e.Size = size
-	}
-
-	e.Name = strings.Join(fields[8:], " ")
-	return e, nil
-}
-
-func (c *ServerConn) List(path string) (entries []*Entry, err error) {
+func (c *ServerConn) List(path string) (entries []*FTPListData, err error) {
 	conn, err := c.cmdDataConn("LIST %s", path)
 	if err != nil {
 		return
@@ -183,10 +139,8 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 		} else if e != nil {
 			return nil, e
 		}
-		entry, err := parseListLine(line)
-		if err == nil {
-			entries = append(entries, entry)
-		}
+		ftplistdata := ParseLine(line)
+		entries = append(entries, ftplistdata)
 	}
 	return
 }
