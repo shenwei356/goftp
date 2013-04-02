@@ -126,28 +126,28 @@ link_dest :  Link destination when listing is a link
 */
 type FTPListData struct {
 
-	rawLine string
-	name string
-	tryCwd bool
-	tryRetr bool
-	size uint64
-	mtimeType MTIME_TYPE
-	mtime time.Time
-	idType ID_TYPE
-	id string
-	linkDest string
+	RawLine string
+	Name string
+	TryCwd bool
+	TryRetr bool
+	Size uint64
+	MtimeType MTIME_TYPE
+	Mtime time.Time
+	IdType ID_TYPE
+	Id string
+	LinkDest string
 }
 
 func newFTPListData(rawLine string) (fdata *FTPListData) {
 	fdata = new(FTPListData)
-	fdata.rawLine = rawLine
-	fdata.name = ""
-	fdata.tryCwd = false
-	fdata.tryRetr = false
-	fdata.mtimeType = UNKNOWN_MTIME_TYPE
-	fdata.idType = UNKNOWN_ID_TYPE
-	fdata.id = ""
-	fdata.linkDest = ""
+	fdata.RawLine = rawLine
+	fdata.Name = ""
+	fdata.TryCwd = false
+	fdata.TryRetr = false
+	fdata.MtimeType = UNKNOWN_MTIME_TYPE
+	fdata.IdType = UNKNOWN_ID_TYPE
+	fdata.Id = ""
+	fdata.LinkDest = ""
 	return
 }
 
@@ -185,28 +185,28 @@ func parseEPLF(buf string) (fdata *FTPListData) {
 	i := 1
 	for j:=1 ; j<len(buf); j++ {
 		if buf[j] == '\t' {
-			fdata.name = buf[j+1:]
+			fdata.Name = buf[j+1:]
 			break
 		}
 		if buf[j] == ',' {
 			c := buf[i]
 			switch c {
 			case '/':
-				fdata.tryCwd = true
+				fdata.TryCwd = true
 			case 'r':
-				fdata.tryRetr = true
+				fdata.TryRetr = true
 			case 's':
 				size, err := strconv.ParseUint(buf[i+1:j], 10, 64)
 				if err != nil { return nil }
-				fdata.size = size
+				fdata.Size = size
 			case 'm':
-				fdata.mtimeType = LOCAL_MTIME_TYPE
+				fdata.MtimeType = LOCAL_MTIME_TYPE
 				unixtime, err := strconv.ParseInt(buf[i+1:j], 10, 64)
 				if err != nil { return nil }
-				fdata.mtime = time.Unix(unixtime, 0)
+				fdata.Mtime = time.Unix(unixtime, 0)
 			case 'i':
-				fdata.idType = FULL_ID_TYPE
-				fdata.id = buf[i+1:j-i-1]
+				fdata.IdType = FULL_ID_TYPE
+				fdata.Id = buf[i+1:j-i-1]
 				
 			}
 			i = j+1
@@ -294,12 +294,12 @@ func parseUNIXStyle(buf string) (fdata *FTPListData) {
 	c := buf[0]
 	switch c {
 	case 'd':
-		fdata.tryCwd = true
+		fdata.TryCwd = true
 	case '-':
-		fdata.tryRetr = true
+		fdata.TryRetr = true
 	case 'l':
-		fdata.tryRetr = true
-		fdata.tryCwd = true
+		fdata.TryRetr = true
+		fdata.TryCwd = true
 	}
 
 	var size uint64 = 0
@@ -340,21 +340,21 @@ func parseUNIXStyle(buf string) (fdata *FTPListData) {
 				if ((j - i) == 4) && (buf[i+1] == ':') {
 					hour = parseInt(string(buf[i]))
 					minute = parseInt(buf[i+2:i+4])
-					fdata.mtimeType = REMOTE_MINUTE_MTIME_TYPE
-					fdata.mtime = time.Unix(guessTime(month, mday, hour, minute), 0)
+					fdata.MtimeType = REMOTE_MINUTE_MTIME_TYPE
+					fdata.Mtime = time.Unix(guessTime(month, mday, hour, minute), 0)
 				} else if (j - i == 5) && (buf[i+2] == ':') {
 					hour = parseInt(buf[i:i+2])
 					minute = parseInt(buf[i+3:i+5])
-					fdata.mtimeType = REMOTE_MINUTE_MTIME_TYPE
-					fdata.mtime = time.Unix(guessTime(month, mday, hour, minute), 0)
+					fdata.MtimeType = REMOTE_MINUTE_MTIME_TYPE
+					fdata.Mtime = time.Unix(guessTime(month, mday, hour, minute), 0)
 				} else if (j - i) >= 4 {
 					year = parseInt(buf[i:j])
-					fdata.mtimeType = REMOTE_DAY_MTIME_TYPE
-					fdata.mtime = time.Unix(getMtime(year, month, mday, 0, 0, 0), 0)
+					fdata.MtimeType = REMOTE_DAY_MTIME_TYPE
+					fdata.Mtime = time.Unix(getMtime(year, month, mday, 0, 0, 0), 0)
 				} else {
 					break
 				}
-				fdata.name = buf[j+1 : ]
+				fdata.Name = buf[j+1 : ]
 				state = 8
 			} else if state == 8 { // twiddling thumbs
 				// pass
@@ -366,13 +366,13 @@ func parseUNIXStyle(buf string) (fdata *FTPListData) {
 		}
 	
 	}
-	fdata.size = size
+	fdata.Size = size
 	if c == 'l' {
-		for i=0 ; (i + 3) < len(fdata.name) ; i++ {
-			if fdata.name[i:i+4] == " -> " {
-				tmp := fdata.name
-				fdata.name = tmp[:i]
-				fdata.linkDest = tmp[i+4:]
+		for i=0 ; (i + 3) < len(fdata.Name) ; i++ {
+			if fdata.Name[i:i+4] == " -> " {
+				tmp := fdata.Name
+				fdata.Name = tmp[:i]
+				fdata.LinkDest = tmp[i+4:]
 				break
 			}
 		}
@@ -380,9 +380,9 @@ func parseUNIXStyle(buf string) (fdata *FTPListData) {
 
 	// eliminate extra NetWare spaces
 	if (buf[1] == ' ') || (buf[1] == '[') {
-		namelen := len(fdata.name)
+		namelen := len(fdata.Name)
 		if namelen > 3 {
-			fdata.name = strings.TrimSpace(fdata.name)
+			fdata.Name = strings.TrimSpace(fdata.Name)
 		}
 			
 	}
@@ -422,7 +422,7 @@ func parseMultinet(buf string, i int) (fdata *FTPListData) {
 	*/
 		
 	fdata = newFTPListData(buf)
-	fdata.name = buf[:i]
+	fdata.Name = buf[:i]
 	buflen := len(buf)
 
 	var month time.Month = 1
@@ -433,14 +433,14 @@ func parseMultinet(buf string, i int) (fdata *FTPListData) {
 
 	if i > 4 {
 		if buf[i-4:i] == ".DIR" {
-			l := len(fdata.name)
-			fdata.name = fdata.name[0:l-4]
-			fdata.tryCwd = true
+			l := len(fdata.Name)
+			fdata.Name = fdata.Name[0:l-4]
+			fdata.TryCwd = true
 		}
 	}
 
-	if fdata.tryCwd == false {
-		fdata.tryRetr = true
+	if fdata.TryCwd == false {
+		fdata.TryRetr = true
 	}
 
 	for p:=0 ; p < 2 ; p++ {
@@ -498,8 +498,8 @@ func parseMultinet(buf string, i int) (fdata *FTPListData) {
 	}
 	minute = parseInt(buf[i:j])
 	
-	fdata.mtimeType = REMOTE_MINUTE_MTIME_TYPE
-	fdata.mtime = time.Unix(getMtime(year, month, mday, hour, minute, 0), 0)
+	fdata.MtimeType = REMOTE_MINUTE_MTIME_TYPE
+	fdata.Mtime = time.Unix(getMtime(year, month, mday, hour, minute, 0), 0)
 	return
 	
 }
@@ -600,7 +600,7 @@ func parseMSDOS(buf string) (fdata *FTPListData) {
 		return
 	}
 	if buf[j] == '<' {
-		fdata.tryCwd = true
+		fdata.TryCwd = true
 		if j = indexAfter(buf, " ", j); j == -1 {
 			return
 		}
@@ -609,16 +609,16 @@ func parseMSDOS(buf string) (fdata *FTPListData) {
 		if j = indexAfter(buf, " ", j); j == -1 {
 			return
 		}
-		fdata.size, _ = strconv.ParseUint(buf[i:j], 10, 64)
-		fdata.tryRetr = true
+		fdata.Size, _ = strconv.ParseUint(buf[i:j], 10, 64)
+		fdata.TryRetr = true
 	}
 
 	if j = skip(buf, j, ' '); j == -1 {
 		return
 	}
-	fdata.name = buf[j:]
-	fdata.mtimeType = REMOTE_MINUTE_MTIME_TYPE
-	fdata.mtime = time.Unix(getMtime(year, month, mday, hour, minute, 0), 0)
+	fdata.Name = buf[j:]
+	fdata.MtimeType = REMOTE_MINUTE_MTIME_TYPE
+	fdata.Mtime = time.Unix(getMtime(year, month, mday, hour, minute, 0), 0)
 	return
 }
 

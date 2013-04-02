@@ -62,17 +62,17 @@ var listTests = []line{
 func TestParseListLine(t *testing.T) {
 	for _, lt := range listTests {
 		entry := ParseLine(lt.line)
-		if entry.name != lt.name {
-			t.Errorf("parseLine(%v).name = '%v', want '%v'. ServerType = %s", lt.line, entry.name, lt.name, lt.stype)
+		if entry.Name != lt.name {
+			t.Errorf("parseLine(%v).name = '%v', want '%v'. ServerType = %s", lt.line, entry.Name, lt.name, lt.stype)
 		}
-		if entry.tryCwd != lt.tryCwd {
-			t.Errorf("parseLine(%v).tryCwd = %v, want %v. ServerType = %s", lt.line, entry.tryCwd, lt.tryCwd, lt.stype)
+		if entry.TryCwd != lt.tryCwd {
+			t.Errorf("parseLine(%v).tryCwd = %v, want %v. ServerType = %s", lt.line, entry.TryCwd, lt.tryCwd, lt.stype)
 		}
-		if entry.size != lt.size {
-			t.Errorf("parseLine(%v).size = %v, want %v. ServerType = %s", lt.line, entry.size, lt.size, lt.stype)
+		if entry.Size != lt.size {
+			t.Errorf("parseLine(%v).size = %v, want %v. ServerType = %s", lt.line, entry.Size, lt.size, lt.stype)
 		}
-		if entry.mtime.UTC().Equal(lt.mtime.UTC()) == false {
-			t.Errorf("parseLine(%v).mtime = %v, want %v. ServerType = %s", lt.line, entry.mtime.UTC(), lt.mtime.UTC(), lt.stype)
+		if entry.Mtime.UTC().Equal(lt.mtime.UTC()) == false {
+			t.Errorf("parseLine(%v).mtime = %v, want %v. ServerType = %s", lt.line, entry.Mtime.UTC(), lt.mtime.UTC(), lt.stype)
 		}
 	}
 }
