@@ -182,6 +182,7 @@ func parseEPLF(buf string) (fdata *FTPListData) {
 	  "+i8388621.44468,m839956783,r,s10376,\tRFCEPLF"
 	*/
 	fdata = newFTPListData(buf)
+	buf = strings.Trim(buf, "\t\n\r ")
 	i := 1
 	for j:=1 ; j<len(buf); j++ {
 		if buf[j] == '\t' {
@@ -289,7 +290,7 @@ func parseUNIXStyle(buf string) (fdata *FTPListData) {
 	*/
 
 	fdata = newFTPListData(buf)
-
+	buf = strings.Trim(buf, "\t\n\r ")
 	buflen := len(buf)
 	c := buf[0]
 	switch c {
@@ -422,6 +423,7 @@ func parseMultinet(buf string, i int) (fdata *FTPListData) {
 	*/
 		
 	fdata = newFTPListData(buf)
+	buf = strings.Trim(buf, "\t\n\r ")
 	fdata.Name = buf[:i]
 	buflen := len(buf)
 
@@ -516,6 +518,7 @@ func parseMSDOS(buf string) (fdata *FTPListData) {
 	*/
 
 	fdata = newFTPListData(buf)
+	buf = strings.Trim(buf, "\t\n\r ")
 
 	var month time.Month = 1
 	var mday int = 0
