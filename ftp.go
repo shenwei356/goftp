@@ -46,8 +46,32 @@ func (c *ServerConn) Login(user, password string) error {
 		return err
 	}
 
-	_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
+	code, _, err := c.cmd(StatusLoggedIn, "PASS %s", password)
+	if code == StatusLoggedIn {
+		return nil
+	}
 	return err
+}
+
+// Enter passive mode
+func (c *ServerConn) pasv() (port int, err error) {
+	c.conn.Cmd("PASV")
+	code, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
+	if (err != nil) && (code != StatusPassiveMode) {
+		return
+	} else {
+		err = nil
+	}
+	start, end := strings.Index(line, "("), strings.Index(line, ")")
+	if start == -1 || end == -1 {
+		err = errors.New("Invalid PASV response format")
+		return
+	}
+	s := strings.Split(line[start+1:end], ",")
+	l1, _ := strconv.Atoi(s[len(s)-2])
+	l2, _ := strconv.Atoi(s[len(s)-1])
+	port = l1*256 + l2
+	return
 }
 
 // Enter extended passive mode
@@ -67,16 +91,17 @@ func (c *ServerConn) epsv() (port int, err error) {
 	return
 }
 
-// Open a new data connection using extended passive mode
+// Open a new data connection using passive mode
 func (c *ServerConn) openDataConn() (net.Conn, error) {
-	port, err := c.epsv()
+	port, err := c.pasv()
+	port, err = c.pasv()
+	port, err = c.pasv()
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
-
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -102,7 +127,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	if err != nil {
 		return nil, err
 	}
-
+	
 	_, err = c.conn.Cmd(format, args...)
 	if err != nil {
 		conn.Close()
@@ -114,9 +139,9 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 		conn.Close()
 		return nil, err
 	}
-	if code != StatusAlreadyOpen && code != StatusAboutToSend {
-		conn.Close()
-		return nil, &textproto.Error{code, msg}
+	if code != StatusAlreadyOpen && code != StatusAboutToSend && code != StatusPassiveMode {
+	 	conn.Close()
+	 	return nil, &textproto.Error{code, msg}
 	}
 
 	return conn, nil
@@ -251,8 +276,8 @@ func (c *ServerConn) Quit() error {
 func (r *response) Read(buf []byte) (int, error) {
 	n, err := r.conn.Read(buf)
 	if err == io.EOF {
-		_, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
-		if err2 != nil {
+		code, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
+		if (err2 != nil) && (code != StatusPassiveMode) {
 			err = err2
 		}
 	}
