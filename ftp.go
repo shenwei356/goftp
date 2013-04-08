@@ -117,7 +117,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 		return 0, "", err
 	}
 	code, line, err := c.conn.ReadCodeLine(expected)
-	if code == StatusLoggedIn && expected == StatusPathCreated {
+	for code == StatusLoggedIn && expected == StatusPathCreated {
 		code, line, err = c.conn.ReadCodeLine(expected)
 	}
 	return code, line, err
@@ -151,6 +151,7 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 
 func (c *ServerConn) List(path string) (entries []*FTPListData, err error) {
 	conn, err := c.cmdDataConn("LIST %s", path)
+	//fmt.Println("List : err = ", err)
 	if err != nil {
 		return
 	}
@@ -189,9 +190,10 @@ func (c *ServerConn) ChangeDirToParent() error {
 func (c *ServerConn) CurrentDir() (string, error) {
 	_, msg, err := c.cmd(StatusPathCreated, "PWD")
 	if err != nil {
+		//fmt.Println("PWD err : ", err, "msg : ", msg)
 		return "", err
 	}
-
+	//fmt.Println("PWD success")
 	start := strings.Index(msg, "\"")
 	end := strings.LastIndex(msg, "\"")
 
