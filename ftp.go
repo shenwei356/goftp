@@ -117,7 +117,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 		return 0, "", err
 	}
 	code, line, err := c.conn.ReadCodeLine(expected)
-	if code == StatusLoggedIn {
+	if code == StatusLoggedIn && expected == StatusPathCreated {
 		code, line, err = c.conn.ReadCodeLine(expected)
 	}
 	return code, line, err
