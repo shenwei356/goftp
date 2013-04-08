@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ServerConn struct {
@@ -102,7 +103,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.DialTimeout("tcp", addr, time.Duration(2400)*time.Second)
 	if err != nil {
 		return nil, err
 	}
