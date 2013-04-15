@@ -24,6 +24,9 @@ type response struct {
 
 // Connect to a ftp server and returns a ServerConn handler.
 func Connect(addr string) (*ServerConn, error) {
+	if strings.Contains(addr, ":") == false {
+		addr = addr + ":21"
+	}
 	conn, err := textproto.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
