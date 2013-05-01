@@ -1,3 +1,21 @@
+/*
+
+Fix a bug when FTP server is Serv-U FTP Server v4.0 for WinSock
+
+Sometimes the response has information like following:
+	Response:	226-Maximum disk quota limited to 1000000 Kbytes
+	Response:	    Used disk quota 0 Kbytes, available 1000000 Kbytes
+	Response:	226 Transfer complete.
+
+
+HOW TO:
+	wirte a MyReadCodeLine function to replace the ReadCodeLine in net/textproto
+	the differences are:
+		1. ingnore the "unexpected multi-line response" err
+		2. when 226-Maximum disk quota limited to 1000000 Kbytes,
+			readLine() two more times
+*/
+
 package ftp
 
 import (
@@ -9,7 +27,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
-	"time"
+	// "time"
 )
 
 type ServerConn struct {
@@ -35,7 +53,8 @@ func Connect(addr string) (*ServerConn, error) {
 	a := strings.SplitN(addr, ":", 2)
 	c := &ServerConn{conn, a[0]}
 
-	_, _, err = c.conn.ReadCodeLine(StatusReady)
+	// _, _, err = c.conn.ReadCodeLine(StatusReady)
+	_, _, err = MyReadCodeLine(c.conn, StatusReady)
 	if err != nil {
 		c.Quit()
 		return nil, err
@@ -57,10 +76,67 @@ func (c *ServerConn) Login(user, password string) error {
 	return err
 }
 
+func MyReadCodeLine(r *textproto.Conn, expectCode int) (code int, message string, err error) {
+	code, continued, message, err := MyreadCodeLine(r, expectCode)
+	if err == nil && continued {
+		// ingnore the "unexpected multi-line response" err
+		// err = textproto.ProtocolError("unexpected multi-line response: " + message)
+		return
+	}
+	return
+}
+func MyreadCodeLine(r *textproto.Conn, expectCode int) (code int, continued bool, message string, err error) {
+	var line string
+	//fmt.Print("read ")
+	line, err = r.ReadLine()
+	if err != nil {
+		return
+	}
+	//fmt.Println(line)
+	// for (    Used disk quota 0 Kbytes, available 1000000 Kbytes)
+	if strings.HasPrefix(line, "  ") {
+		line, _ = r.ReadLine()
+		if err != nil {
+			return
+		}
+
+		//fmt.Printf("1: %s\n", line)
+		line, err = r.ReadLine()
+		if err != nil {
+			return
+		}
+		//fmt.Printf("2: %s\n", line)
+	}
+
+	code, continued, message, err = parseCodeLine(line, expectCode)
+	return
+}
+
+func parseCodeLine(line string, expectCode int) (code int, continued bool, message string, err error) {
+	if len(line) < 4 || line[3] != ' ' && line[3] != '-' {
+		err = textproto.ProtocolError("short response: " + line)
+		return
+	}
+	continued = line[3] == '-'
+	code, err = strconv.Atoi(line[0:3])
+	if err != nil || code < 100 {
+		err = textproto.ProtocolError("invalid response code: " + line)
+		return
+	}
+	message = line[4:]
+	if 1 <= expectCode && expectCode < 10 && code/100 != expectCode ||
+		10 <= expectCode && expectCode < 100 && code/10 != expectCode ||
+		100 <= expectCode && expectCode < 1000 && code != expectCode {
+		err = &textproto.Error{code, message}
+	}
+	return
+}
+
 // Enter passive mode
 func (c *ServerConn) pasv() (port int, err error) {
 	c.conn.Cmd("PASV")
-	code, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
+
+	code, line, err := MyReadCodeLine(c.conn, StatusExtendedPassiveMode)
 	if (err != nil) && (code != StatusPassiveMode) {
 		return
 	} else {
@@ -81,10 +157,12 @@ func (c *ServerConn) pasv() (port int, err error) {
 // Enter extended passive mode
 func (c *ServerConn) epsv() (port int, err error) {
 	c.conn.Cmd("EPSV")
-	_, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
+	// _, line, err := c.conn.ReadCodeLine(StatusExtendedPassiveMode)
+	_, line, err := MyReadCodeLine(c.conn, StatusExtendedPassiveMode)
 	if err != nil {
 		return
 	}
+
 	start := strings.Index(line, "|||")
 	end := strings.LastIndex(line, "|")
 	if start == -1 || end == -1 {
@@ -98,19 +176,19 @@ func (c *ServerConn) epsv() (port int, err error) {
 // Open a new data connection using passive mode
 func (c *ServerConn) openDataConn() (net.Conn, error) {
 	port, err := c.pasv()
-	port, err = c.pasv()
-	port, err = c.pasv()
+	// port, err = c.pasv()
+	// port, err = c.pasv()
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the new net address string
 	addr := fmt.Sprintf("%s:%d", c.host, port)
-	conn, err := net.DialTimeout("tcp", addr, time.Duration(2400)*time.Second)
+	// conn, err := net.DialTimeout("tcp", addr, time.Duration(2400)*time.Second)
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-
 	return conn, nil
 }
 
@@ -120,9 +198,11 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 	if err != nil {
 		return 0, "", err
 	}
-	code, line, err := c.conn.ReadCodeLine(expected)
+	// code, line, err := c.conn.ReadCodeLine(expected)
+	code, line, err := MyReadCodeLine(c.conn, expected)
 	for code == StatusLoggedIn && expected == StatusPathCreated {
-		code, line, err = c.conn.ReadCodeLine(expected)
+		//code, line, err = c.conn.ReadCodeLine(expected)
+		code, line, err = MyReadCodeLine(c.conn, expected)
 	}
 	return code, line, err
 }
@@ -133,47 +213,67 @@ func (c *ServerConn) cmdDataConn(format string, args ...interface{}) (net.Conn, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	_, err = c.conn.Cmd(format, args...)
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 
-	code, msg, err := c.conn.ReadCodeLine(-1)
+	// code, msg, err := c.conn.ReadCodeLine(-1)
+	code, msg, err := MyReadCodeLine(c.conn, -1)
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend && code != StatusPassiveMode {
-	 	conn.Close()
-	 	return nil, &textproto.Error{code, msg}
+		conn.Close()
+		return nil, &textproto.Error{code, msg}
 	}
 
 	return conn, nil
 }
 
 func (c *ServerConn) List(path string) (entries []*FTPListData, err error) {
+	// fmt.Printf("\n\nstart list %s\n", path)
 	conn, err := c.cmdDataConn("LIST %s", path)
-	//fmt.Println("List : err = ", err)
+	// fmt.Printf("list %s\n", path)
 	if err != nil {
 		return
 	}
-
 	r := &response{conn, c}
-	defer r.Close()
 
 	bio := bufio.NewReader(r)
+
+	//fmt.Println("start listLine")
 	for {
+		// fmt.Printf("listLine: ")
+		// fmt.Print("%v, %v", c, conn)
 		line, e := bio.ReadString('\n')
 		if e == io.EOF {
+			// fmt.Println("=")
 			break
 		} else if e != nil {
-			return nil, e
+			// fmt.Println("=")
+			// return nil, e
+			// ingnore the "unexpected multi-line response" err
+			return
 		}
+
+		// fmt.Print(line)
 		ftplistdata := ParseLine(line)
 		entries = append(entries, ftplistdata)
 	}
+	// fmt.Println("finished listline")
+
+	defer func() {
+		err := r.Close()
+		if err != nil {
+			recover()
+			fmt.Println(err)
+			return
+		}
+	}()
 	return
 }
 
@@ -234,7 +334,8 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 		return err
 	}
 
-	_, _, err = c.conn.ReadCodeLine(StatusClosingDataConnection)
+	// _, _, err = c.conn.ReadCodeLine(StatusClosingDataConnection)
+	_, _, err = MyReadCodeLine(c.conn, StatusClosingDataConnection)
 	return err
 }
 
@@ -284,7 +385,9 @@ func (c *ServerConn) Quit() error {
 func (r *response) Read(buf []byte) (int, error) {
 	n, err := r.conn.Read(buf)
 	if err == io.EOF {
-		code, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
+		// code, _, err2 := r.c.conn.ReadCodeLine(StatusClosingDataConnection)
+		code, _, err2 := MyReadCodeLine(r.c.conn, StatusClosingDataConnection)
+
 		if (err2 != nil) && (code != StatusPassiveMode) {
 			err = err2
 		}
