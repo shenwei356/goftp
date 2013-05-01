@@ -6,20 +6,25 @@ forked from dennisfrancis/goftp
 What I've done
 --------------
 
-Fix a bug when FTP server is Serv-U FTP Server v4.0 for WinSock.
+Make it compatible to FTP server like Serv-U FTP Server v4.0 for WinSock. 
+The response are followed disk information after excuting LIST command:
 
-Sometimes the response has information like following:
-
-	Response:	226-Maximum disk quota limited to 1000000 Kbytes
-	Response:	    Used disk quota 0 Kbytes, available 1000000 Kbytes
-	Response:	226 Transfer complete.
+	226-Maximum disk quota limited to 1000000 Kbytes
+	    Used disk quota 0 Kbytes, available 1000000 Kbytes
+	226 Transfer complete.
 
 
 HOW TO
 ------
-wirte a MyReadCodeLine function to replace the ReadCodeLine in net/textproto
-the differences are:
-	
+I wrote a MyReadCodeLine function to replace the ReadCodeLine() in package 
+net/textproto.
+
+Some changes are made:
+
 1. ingnore the "unexpected multi-line response" err
-2. when 226-Maximum disk quota limited to 1000000 Kbytes,
-   just readLine() two more times
+2. for response "226-Maximum disk quota limited to 1000000 Kbytes",
+   just readLine() two more times.
+   
+OTHERS
+------
+It's still in development, so there are some commentted fmt sentences for debug.
