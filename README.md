@@ -17,8 +17,8 @@ Sometimes the response has information like following:
 
 HOW TO
 ------
-	wirte a MyReadCodeLine function to replace the ReadCodeLine in net/textproto
-	the differences are:
+wirte a MyReadCodeLine function to replace the ReadCodeLine in net/textproto
+the differences are:
 	
 1. ingnore the "unexpected multi-line response" err
 2. when 226-Maximum disk quota limited to 1000000 Kbytes,
