@@ -25,6 +25,8 @@ Some changes are made:
 2. for response "226-Maximum disk quota limited to 1000000 Kbytes",
    just readLine() two more times.
    
-OTHERS
+TODO
 ------
+- Deal with the welcome message.
+
 It's still in development, so there are some commentted fmt sentences for debug.
